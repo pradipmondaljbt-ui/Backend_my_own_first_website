@@ -8,12 +8,12 @@ dotenv.config({
 connectedDb()
 .then(()=>{
     app.listen(process.env.PORT || 3000,()=>{
-        console.log(`Server listen at port ${PORT}`)
+        console.log(`Server listen at port ${process.env.PORT}`)
     })
-}).catch(error){
+}).catch((error)=>{
     console.log(`server connection failed`,error);
     throw error;
-}
+})
 
 
 

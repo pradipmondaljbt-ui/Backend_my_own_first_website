@@ -10,9 +10,9 @@
 
 // using try catch
 
-const asyncHandaler=(requestHandaler)=>{async()=>{
+const asyncHandaler=(requestHandaler)=>{ return async(req,res,next)=>{
     try{
-        await(req,res,next)
+        await requestHandaler(req,res,next)
     }catch(err){
         res.status(err.code || 500).json({
             success:false,
