@@ -93,3 +93,7 @@ userSchema.models.generateRefreshToken=function(){
 
 
 export const User= mongoose.model("User",userSchema);
+
+
+
+// multon or cloudinary install
