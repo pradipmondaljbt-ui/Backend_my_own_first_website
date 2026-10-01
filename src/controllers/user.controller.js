@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import {User} from "../models/user.model.js"
 import {cloudinaryFileUpload} from "../utils/cloudinary.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
+import { verifyJwt } from "../middlewares/auth.middlewares.js";
+import jwt from "jsonwebtoken"
 
 const generateAccessTokenAndrefereshToken=async(userId)=>{
     const user= await User.findById(userId);
@@ -176,8 +178,60 @@ const logoutUser=asyncHandaler(async(req,res)=>{
     )
 })
 
+const refreshAccessToken=asyncHandaler(async(req,res)=>{
+
+    const incomingRefereshToken=req.cookies.refreshToken || req.body.refreshToken
+
+    if(!incomingRefereshToken){
+        throw new ApiError(401,"unauthorized request")
+    }
+    
+
+    
+       try {
+         const decodeToken=jwt.verify(incomingRefereshToken,REFRESH_TOKEN_SECRET)
+     
+         const user=await User.findById(decodeToken._id)
+     
+         if(!user){
+             throw new ApiError(401,"Invalid RefereshToken")
+         }
+     
+         if(incomingRefereshToken!==user.refreshToken){
+             throw new ApiError(401,"Invalid refereshtoken")
+         }
+     
+         const {accessToken,NewrefreshToken}=await generateAccessTokenAndrefereshToken(user._id)
+     
+         const options={
+             httpOnly:true,
+             secure:true
+         }
+     
+         return res.status(200)
+         .cookie("accessToken",accessToken,options)
+         .cookie("refreshToken",NewrefreshToken,options)
+         .json(
+             new ApiResponse(
+                 200,
+                 {
+                     accessToken,refreshToken:NewrefreshToken
+                 },
+                 "Accesstoken refereshed"
+             )
+         )
+       } catch (error) {
+        throw new ApiError(401,error?.message||"Invalid accessToeken")
+       }
+    
+        })
+    
+
+
+
 export {
  registerUser,
  loginUser,
- logoutUser
+ logoutUser,
+ refreshAccessToken
 };
