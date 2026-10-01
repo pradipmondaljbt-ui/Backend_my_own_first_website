@@ -3,6 +3,19 @@ import { ApiError } from "../utils/ApiError.js";
 import {User} from "../models/user.model.js"
 import {cloudinaryFileUpload} from "../utils/cloudinary.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
+
+const generateAccessTokenAndrefereshToken=async(userId)=>{
+    const user= await User.findById(userId);
+    const accessToken=user.generateAccessToken();
+    const refreshToken=user.generateRefreshToken();
+
+    user.refreshToken=refreshToken;
+    await user.save({validateBeforeSave:false});
+
+    return {accessToken,refreshToken}
+}
+
+
 const registerUser=asyncHandaler(async(req,res)=>{
     // get user details from frontend
     // validation - not empty
@@ -41,7 +54,7 @@ const registerUser=asyncHandaler(async(req,res)=>{
     console.log(req.files);
     // avatar er coverimage nbo multer thaka server e 
 
-    const avatarLocalpath=req.files?.avatar[0]?.path
+    const avatarLocalpath=req.files?.avatar?.[0]?.path
     // const coverImageLocalpath=req.files?.coverImage[0]?.path ||""
     let coverImageLocalpath;
     if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage[0].path){
@@ -85,4 +98,86 @@ const registerUser=asyncHandaler(async(req,res)=>{
 
 })
 
-export default registerUser;
+const loginUser=asyncHandaler(async (req,res)=>{
+    /* 
+    req.body=data;
+    username or email 
+    find the user
+    password check
+    access token and referesh token
+    send cookie
+    */
+
+    const {username,email,password}=req.body
+
+    if(!username && !email){
+        throw new ApiError(400,"username or email is required");
+    }
+    const user=await User.findOne({
+        $or: [{username},{email}]
+    })
+
+    if(!user){
+        throw new ApiError(401,"user does not exist");
+    }
+
+    const validPassword=await user.isPasswordCheck(password);
+    if(!validPassword){
+        throw new ApiError(404,"password is not match");
+    }
+
+    const{accessToken,refreshToken}=await generateAccessTokenAndrefereshToken(user._id)
+
+    const userloggedin=await User.findById(user._id).select("-password -refereshToken")
+
+    const options={
+        httpOnly:true,
+        secure:true
+    }
+
+    return res.status(200).cookie("accessToken", accessToken,options)
+    .cookie("refreshToken",refreshToken,options).
+    json(
+        new ApiResponse(
+            200,
+            {
+                user:userloggedin,accessToken,refreshToken
+            },
+            `user successfully logged in`
+        )
+    )
+
+
+})
+
+const logoutUser=asyncHandaler(async(req,res)=>{
+
+    await User.findByIdAndUpdate(req.user._id,
+        {
+            $unset:{
+                refreshToken:1
+            },
+            
+        },
+        {
+                new:true
+            }
+    )
+
+    const options={
+        httpOnly:true,
+        secure:true
+    }
+
+    return res.status(200).clearCookie("accessToken",options)
+    .clearCookie("refereshToken",options)
+    .json(
+         new ApiResponse(200,"Successfully log out")
+    )
+})
+
+export {
+ registerUser,
+ loginUser,
+ logoutUser
+};
