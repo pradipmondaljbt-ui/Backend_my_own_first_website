@@ -226,7 +226,24 @@ const refreshAccessToken=asyncHandaler(async(req,res)=>{
     
         })
     
+const changeCurrentPassword=asyncHandaler(async(req,res)=>{
+    const {oldPassword,NewPassword}=req.body;
 
+    const user=await User.findById(req.user?._id)
+
+    if(!user){
+        throw new ApiError(400,"bad request")
+    }
+
+    const verifyPassword=await user.isPasswordCheck(oldPassword)
+
+    if(!verifyPassword){
+        throw new ApiError(401,"password does not match")
+    }
+
+    user.password=NewPassword
+    await user.save({validateBeforeSave:false})
+})
 
 
 export {
